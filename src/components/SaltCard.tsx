@@ -1,195 +1,179 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
+import SelectionButton from "./SelectionButton";
 
 interface SaltCardProps {
-	salt: string;
-	availableForms: string[];
-	saltFormJson: any;
+  salt: string;
+  availableForms: string[];
+  saltFormJson: any;
 }
 
-const SaltCard = ({ salt, availableForms, saltFormJson }: SaltCardProps) => {
-	const [selectedForm, setSelectedForm] = useState(availableForms[0]);
-	const [selectedStrength, setSelectedStrength] = useState("");
-	const [selectedPacking, setSelectedPacking] = useState("");
-	const [strengths, setStrengths] = useState<string[]>([]);
-	const [packings, setPackings] = useState<string[]>([]);
-	const [allStrengths, setAllStrengths] = useState<string[]>([]);
-	const [allPackings, setAllPackings] = useState<string[]>([]);
-	const [lowestPrice, setLowestPrice] = useState<number | null>(null);
+const SaltCard: React.FC<SaltCardProps> = ({
+  salt,
+  availableForms,
+  saltFormJson,
+}) => {
+  const [selectedForm, setSelectedForm] = useState(availableForms[0]);
+  const [selectedStrength, setSelectedStrength] = useState("");
+  const [selectedPacking, setSelectedPacking] = useState("");
+  const [lowestPrice, setLowestPrice] = useState<number | null>(null);
 
-	useEffect(() => {
-		const allForms = Object.keys(saltFormJson);
-		const allStrengthsSet = new Set<string>();
-		const allPackingsSet = new Set<string>();
+  const [formExpanded, setFormExpanded] = useState(false);
+  const [strengthExpanded, setStrengthExpanded] = useState(false);
+  const [packingExpanded, setPackingExpanded] = useState(false);
 
-		allForms.forEach((form) => {
-			Object.keys(saltFormJson[form]).forEach((strength) => {
-				allStrengthsSet.add(strength);
-				Object.keys(saltFormJson[form][strength]).forEach((packing) => {
-					allPackingsSet.add(packing);
-				});
-			});
-		});
+  const allStrengths = useMemo(() => {
+    const strengthsSet = new Set<string>();
+    Object.keys(saltFormJson).forEach((form) => {
+      Object.keys(saltFormJson[form]).forEach((strength) =>
+        strengthsSet.add(strength)
+      );
+    });
+    return Array.from(strengthsSet);
+  }, [saltFormJson]);
 
-		setAllStrengths(Array.from(allStrengthsSet));
-		setAllPackings(Array.from(allPackingsSet));
-	}, [saltFormJson]);
+  const allPackings = useMemo(() => {
+    const packingsSet = new Set<string>();
+    Object.keys(saltFormJson).forEach((form) => {
+      Object.keys(saltFormJson[form]).forEach((strength) => {
+        Object.keys(saltFormJson[form][strength]).forEach((packing) =>
+          packingsSet.add(packing)
+        );
+      });
+    });
+    return Array.from(packingsSet);
+  }, [saltFormJson]);
 
-	useEffect(() => {
-		if (selectedForm) {
-			const strengthsArray = Object.keys(
-				saltFormJson[selectedForm] || {}
-			);
-			setStrengths(strengthsArray);
-			setSelectedStrength(strengthsArray[0] || "");
-		}
-	}, [selectedForm, saltFormJson]);
 
-	useEffect(() => {
-		if (selectedForm && selectedStrength) {
-			const packingsArray = Object.keys(
-				saltFormJson[selectedForm]?.[selectedStrength] || {}
-			);
-			setPackings(packingsArray);
-			setSelectedPacking(packingsArray[0] || "");
-		}
-	}, [selectedForm, selectedStrength, saltFormJson]);
+  const strengths = useMemo(
+    () => (selectedForm ? Object.keys(saltFormJson[selectedForm] || {}) : []),
+    [selectedForm, saltFormJson]
+  );
+  const packings = useMemo(
+    () =>
+      selectedForm && selectedStrength
+        ? Object.keys(saltFormJson[selectedForm]?.[selectedStrength] || {})
+        : [],
+    [selectedForm, selectedStrength, saltFormJson]
+  );
 
-	useEffect(() => {
-		if (selectedForm && selectedStrength && selectedPacking) {
-			const packings =
-				saltFormJson[selectedForm]?.[selectedStrength]?.[
-					selectedPacking
-				] || {};
-			const prices = Object.values(packings)
-				.filter((pharmacy: any) => pharmacy !== null)
-				.map((pharmacy: any) => pharmacy[0]?.selling_price);
-			if (prices.length > 0) {
-				setLowestPrice(Math.min(...prices));
-			} else {
-				setLowestPrice(null);
-			}
-		} else {
-			setLowestPrice(null);
-		}
-	}, [selectedForm, selectedStrength, selectedPacking, saltFormJson]);
+  useEffect(() => {
+    setSelectedStrength(strengths[0] || "");
+  }, [strengths]);
 
-	const handleFormSelect = (form: string) => {
-		setSelectedForm(form);
-		const strengthsArray = Object.keys(saltFormJson[form] || {});
-		setSelectedStrength(strengthsArray[0] || "");
-		const packingsArray = Object.keys(
-			saltFormJson[form]?.[strengthsArray[0]] || {}
-		);
-		setSelectedPacking(packingsArray[0] || "");
-	};
 
-	const handleStrengthSelect = (strength: string) => {
-		setSelectedStrength(strength);
-		const packingsArray = Object.keys(
-			saltFormJson[selectedForm]?.[strength] || {}
-		);
-		setSelectedPacking(packingsArray[0] || "");
-	};
+  useEffect(() => {
+    setSelectedPacking(packings[0] || "");
+  }, [packings]);
 
-	const handlePackingSelect = (packing: string) => {
-		setSelectedPacking(packing);
-	};
 
-	const getButtonClass = (available: boolean, selected: boolean) => {
-		const baseClass = "text-xs px-2.5 py-1.5 rounded-lg";
-		if (available && selected) {
-			return `${baseClass} font-semibold border-2 border-[#112D31] shadow-[0px_0px_11.54px_0px_#00C5A166]`;
-		} else if (available && !selected) {
-			return `${baseClass} border-2 text-[#555555] border-[#ABABAB]`;
-		} else if (!available && selected) {
-			return `${baseClass} border-2 border-[#112D31] border-dashed`;
-		} else {
-			return `${baseClass} border-2 text-[#555555] border-[#ABABAB] border-dashed`;
-		}
-	};
+  useEffect(() => {
+    if (selectedForm && selectedStrength && selectedPacking) {
+      const packings =
+        saltFormJson[selectedForm]?.[selectedStrength]?.[selectedPacking] || {};
+      const prices = Object.values(packings)
+        .flat()
+        .filter((pharmacy: any) => pharmacy !== null)
+        .map((pharmacy: any) => pharmacy.selling_price);
+      setLowestPrice(prices.length > 0 ? Math.min(...prices) : null);
+    } else {
+      setLowestPrice(null);
+    }
+  }, [selectedForm, selectedStrength, selectedPacking, saltFormJson]);
 
-	return (
-		<li className="gradient-salt shadow-salt grid grid-cols-3 px-8 py-8 rounded-2xl">
-			<div className="grid grid-cols-2 gap-y-6">
-				<div className="text-sm">Form: </div>
-				<div className="flex flex-wrap items-center gap-4">
-					{availableForms.map((form) => {
-						const isSelected = selectedForm === form;
-						const isAvailable = availableForms.includes(form);
-						return (
-							<button
-								className={getButtonClass(
-									isAvailable,
-									isSelected
-								)}
-								key={form}
-								onClick={() => handleFormSelect(form)}
-							>
-								{form}
-							</button>
-						);
-					})}
-				</div>
-				<div className="text-sm">Strength: </div>
-				<div className="flex flex-wrap items-center gap-4">
-					{allStrengths.map((strength) => {
-						const isSelected = selectedStrength === strength;
-						const isAvailable = strengths.includes(strength);
-						return (
-							<button
-								className={getButtonClass(
-									isAvailable,
-									isSelected
-								)}
-								key={strength}
-								onClick={() => handleStrengthSelect(strength)}
-							>
-								{strength}
-							</button>
-						);
-					})}
-				</div>
-				<div className="text-sm">Packaging: </div>
-				<div className="flex flex-wrap items-center gap-4">
-					{allPackings.map((packing) => {
-						const isSelected = selectedPacking === packing;
-						const isAvailable = packings.includes(packing);
-						return (
-							<button
-								className={getButtonClass(
-									isAvailable,
-									isSelected
-								)}
-								key={packing}
-								onClick={() => handlePackingSelect(packing)}
-							>
-								{packing}
-							</button>
-						);
-					})}
-				</div>
-			</div>
-			<div className="w-fit py-8 mx-auto flex flex-col items-center justify-center text-center">
-				<h2 className="font-bold text-black text-xl mb-2">{salt}</h2>
-				<p className="text-[#2A527A] text-xs">
-					{selectedForm} | {selectedStrength} | {selectedPacking}
-				</p>
-			</div>
 
-			<div className="font-[Inter] flex flex-col text-center justify-center items-center">
-				{lowestPrice !== null ? (
-					<div className="text-black font-extrabold text-3xl">
-						From₹{lowestPrice}
-					</div>
-				) : (
-					<div className="w-fit bg-white text-black rounded-md text-sm font-medium leading-[1.2rem] border border-[#A7D6D4] px-6 py-3">
-						No stores selling this <br /> product near you
-					</div>
-				)}
-			</div>
-		</li>
-	);
+  const handleSelect = useCallback(
+    (setter: React.Dispatch<React.SetStateAction<string>>) => (item: string) =>
+      setter(item),
+    []
+  );
+
+  const renderButtons = (
+    items: string[],
+    selectedItem: string,
+    handleSelect: (item: string) => void,
+    expanded: boolean,
+    setExpanded: React.Dispatch<React.SetStateAction<boolean>>,
+    availableItems: string[]
+  ) => {
+    const displayedItems = expanded ? items : items.slice(0, 2);
+    return (
+      <div className="flex flex-wrap items-center gap-4">
+        {displayedItems.map((item) => (
+          <SelectionButton
+            key={item}
+            label={item}
+            available={availableItems.includes(item)}
+            selected={selectedItem === item}
+            onClick={() => handleSelect(item)}
+          />
+        ))}
+        {items.length > 2 && (
+          <span
+            className="text-sm cursor-pointer text-[#204772] font-bold"
+            onClick={() => setExpanded(!expanded)}
+          >
+            {expanded ? "less" : "more..."}
+          </span>
+        )}
+      </div>
+    );
+  };
+
+  
+  return (
+    <li className="gradient-salt shadow-salt grid grid-cols-3 px-8 py-8 rounded-2xl">
+      <div className="grid grid-cols-2 gap-y-6">
+        <div className="text-sm">Form: </div>
+        {renderButtons(
+          availableForms,
+          selectedForm,
+          handleSelect(setSelectedForm),
+          formExpanded,
+          setFormExpanded,
+          availableForms
+        )}
+
+        <div className="text-sm">Strength: </div>
+        {renderButtons(
+          allStrengths,
+          selectedStrength,
+          handleSelect(setSelectedStrength),
+          strengthExpanded,
+          setStrengthExpanded,
+          strengths
+        )}
+
+        <div className="text-sm">Packaging: </div>
+        {renderButtons(
+          allPackings,
+          selectedPacking,
+          handleSelect(setSelectedPacking),
+          packingExpanded,
+          setPackingExpanded,
+          packings
+        )}
+      </div>
+      <div className="w-fit py-8 mx-auto flex flex-col items-center justify-center text-center">
+        <h2 className="font-bold text-black text-xl mb-2">{salt}</h2>
+        <p className="text-[#2A527A] text-xs">
+          {selectedForm} | {selectedStrength} | {selectedPacking}
+        </p>
+      </div>
+
+      <div className="font-[Inter] flex flex-col text-center justify-center items-center">
+        {lowestPrice !== null ? (
+          <div className="text-black font-extrabold text-3xl">
+            From ₹{lowestPrice}
+          </div>
+        ) : (
+          <div className="w-fit bg-white text-black rounded-md text-sm font-medium leading-[1.2rem] border border-[#A7D6D4] px-6 py-3">
+            No stores selling this <br /> product near you
+          </div>
+        )}
+      </div>
+    </li>
+  );
 };
 
 export default SaltCard;
